@@ -4,7 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 // https://www.youtube.com/watch?v=DhyOyqz7saM&list=PLdtFzIhH38aKQfgjcui_WSdsksoVzHoc1
-// hasel em 20:30
+// hasel em 25:40
 class TetrisGame extends StatefulWidget {
   const TetrisGame({Key? key}) : super(key: key);
 
@@ -15,6 +15,7 @@ class TetrisGame extends StatefulWidget {
 class _TetrisGameState extends State<TetrisGame> {
   // lets make BrickShape for next object show on top
 
+  GlobalKey<_TetrisGameState> keyGlobal = GlobalKey();
   ValueNotifier<List<BrickObjectPos>> brickObjectPosValue = ValueNotifier<List<BrickObjectPos>>(List<BrickObjectPos>.from([]));
 
   @override
@@ -24,6 +25,7 @@ class _TetrisGameState extends State<TetrisGame> {
 
   @override
   Widget build(BuildContext context) {
+    const double sizePerSquare = 40;
     return Scaffold(
       body: Container(
         color: Colors.blue,
@@ -106,7 +108,20 @@ class _TetrisGameState extends State<TetrisGame> {
                     child: Container(
                   width: double.maxFinite,
                   color: Colors.green,
-                  child: Text("Set Tetris Widget here"),
+                  child: LayoutBuilder(builder: (context, constraints) {
+                    return TetrisWidget(
+                      // sent size
+                      constraints.biggest,
+                      key: keyGlobal,
+                      // size pre box brick
+                      sizePerSquare: sizePerSquare,
+                      // make callback for next brick show after generate on widget
+                      setNextBrick: (List<BrickObjectPos> brickObjectPos) {
+                        brickObjectPosValue.value = brickObjectPos;
+                        brickObjectPosValue.notifyListeners();
+                      },
+                    );
+                  }),
                 ))
               ],
             );
@@ -114,6 +129,61 @@ class _TetrisGameState extends State<TetrisGame> {
         ),
       ),
     );
+  }
+}
+
+class TetrisWidget extends StatefulWidget {
+  Function(List<BrickObjectPos> brickObjectPos)? setNextBrick;
+  final Size size;
+  double? sizePerSquare = 40;
+
+  TetrisWidget(this.size, {Key? key, this.setNextBrick, this.sizePerSquare}) : super(key: key);
+
+  @override
+  State<TetrisWidget> createState() => _TetrisWidgetState();
+}
+
+class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderStateMixin {
+  // set animation & controller animation 1st
+  late Animation<double> animation;
+  late AnimationController animationController;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // calculate size box base size box Tetris
+    calculateSizeBox();
+    animationController = AnimationController(vsync: this, duration: Duration(microseconds: 1000));
+    animation = Tween<double>(begin: 0, end: 1).animate(animationController)..addListener(animationLoop);
+    animationController.forward();
+  }
+
+  void calculateSizeBox() {
+    sizeBox = Size();
+  }
+
+  void animationLoop() {
+    if (animation.isCompleted) {
+      print("nice run");
+      animationController.reset();
+      animationController.forward();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.red,
+    );
+  }
+
+  @override
+  void dispose() {
+    // dispose run smoothly
+    animation.removeListener(animationLoop);
+    animationController.dispose();
+    super.dispose();
   }
 }
 
