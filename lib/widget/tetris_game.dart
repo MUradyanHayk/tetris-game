@@ -4,7 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 // https://www.youtube.com/watch?v=DhyOyqz7saM&list=PLdtFzIhH38aKQfgjcui_WSdsksoVzHoc1
-// hasel em 36:50
+// hasel em 40:00
 class TetrisGame extends StatefulWidget {
   const TetrisGame({Key? key}) : super(key: key);
 
@@ -15,7 +15,7 @@ class TetrisGame extends StatefulWidget {
 class _TetrisGameState extends State<TetrisGame> {
   // lets make BrickShape for next object show on top
 
-  GlobalKey<_TetrisWidgetState > keyGlobal = GlobalKey();
+  GlobalKey<_TetrisWidgetState> keyGlobal = GlobalKey();
   ValueNotifier<List<BrickObjectPos>> brickObjectPosValue = ValueNotifier<List<BrickObjectPos>>(List<BrickObjectPos>.from([]));
 
   @override
@@ -205,10 +205,12 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
         builder: (context) => SimpleDialog(
               children: [
                 Text("Pause Game"),
-                ElevatedButton(onPressed: () {
-                  Navigator.of(context).pop();
-                  animationController.forward();
-                }, child: Text("Pause")),
+                ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      animationController.forward();
+                    },
+                    child: Text("Pause")),
               ],
             ));
   }
@@ -221,21 +223,23 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
         builder: (context) => SimpleDialog(
               children: [
                 Text("Resume Game"),
-                ElevatedButton(onPressed: () {
-                  donePointsValue.value = [];
-                  donePointsValue.notifyListeners();
+                ElevatedButton(
+                    onPressed: () {
+                      donePointsValue.value = [];
+                      donePointsValue.notifyListeners();
 
-                  brickObjectPosValue.value = [];
-                  brickObjectPosValue.notifyListeners();
+                      brickObjectPosValue.value = [];
+                      brickObjectPosValue.notifyListeners();
 
-                  Navigator.of(context).pop();
+                      Navigator.of(context).pop();
 
-                  calculateSizeBox();
-                  randomBrick(start: true);
-                  animationController.reset();
-                  animationController.stop();
-                  animationController.forward();
-                }, child: Text("Start / Reset")),
+                      calculateSizeBox();
+                      randomBrick(start: true);
+                      animationController.reset();
+                      animationController.stop();
+                      animationController.forward();
+                    },
+                    child: Text("Start / Reset")),
               ],
             ));
   }
@@ -271,8 +275,40 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    double margin = 0;
+    Border border = Border.all(width: 1, color: Colors.black);
+
+    // let show our generate bricks
     return Container(
-      color: Colors.red,
+      alignment: Alignment.center,
+      color: Colors.brown,
+      child: Container(
+        child: ValueListenableBuilder(
+          valueListenable: donePointsValue,
+          builder: (context, List<BrickObjectPosDone> donePoints, child) {
+            return ValueListenableBuilder(
+                valueListenable: brickObjectPosValue,
+                builder: (context, List<BrickObjectPos> brickObjectPoses, child) {
+                  return Stack(
+                    children: [
+                      // 1st generate box show our grid
+                      ...List.generate(sizeBox.width ~/ widget.sizePerSquare! * sizeBox.height ~/ widget.sizePerSquare!, (index) {
+                        return Positioned(
+                          left: index % (sizeBox.width / widget.sizePerSquare!) * widget.sizePerSquare!,
+                          top: index ~/ (sizeBox.width / widget.sizePerSquare!) * widget.sizePerSquare!,
+                          child: Container(
+                            decoration: BoxDecoration(color: Colors.red, border: Border.all(width: 1)),
+                            width: widget.sizePerSquare!,
+                            height: widget.sizePerSquare!,
+                          ),
+                        );
+                      }),
+                    ],
+                  );
+                });
+          },
+        ),
+      ),
     );
   }
 
