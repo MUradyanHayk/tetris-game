@@ -4,7 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 // https://www.youtube.com/watch?v=DhyOyqz7saM&list=PLdtFzIhH38aKQfgjcui_WSdsksoVzHoc1
-// hasel em 25:40
+// hasel em 36:50
 class TetrisGame extends StatefulWidget {
   const TetrisGame({Key? key}) : super(key: key);
 
@@ -15,7 +15,7 @@ class TetrisGame extends StatefulWidget {
 class _TetrisGameState extends State<TetrisGame> {
   // lets make BrickShape for next object show on top
 
-  GlobalKey<_TetrisGameState> keyGlobal = GlobalKey();
+  GlobalKey<_TetrisWidgetState > keyGlobal = GlobalKey();
   ValueNotifier<List<BrickObjectPos>> brickObjectPosValue = ValueNotifier<List<BrickObjectPos>>(List<BrickObjectPos>.from([]));
 
   @override
@@ -56,16 +56,16 @@ class _TetrisGameState extends State<TetrisGame> {
                               children: [
                                 ElevatedButton(
                                   onPressed: () {
-                                    print("Start");
+                                    keyGlobal.currentState!.resetGame();
                                   },
-                                  child: Text("Start"),
+                                  child: Text("Reset"),
                                   style: ButtonStyle(backgroundColor: MaterialStateColor.resolveWith((states) => Colors.red[900]!)),
                                 ),
                                 ElevatedButton(
                                   onPressed: () {
-                                    print("Reset");
+                                    keyGlobal.currentState!.pauseGame();
                                   },
-                                  child: Text("Reset"),
+                                  child: Text("Pause"),
                                   style: ButtonStyle(backgroundColor: MaterialStateColor.resolveWith((states) => Colors.red[900]!)),
                                 ),
                               ],
@@ -147,6 +147,19 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
   // set animation & controller animation 1st
   late Animation<double> animation;
   late AnimationController animationController;
+  late Size sizeBox;
+
+  // our index point array for base or walls
+  late List<int> levelBases;
+
+  // all brick generated will save here
+  ValueNotifier<List<BrickObjectPos>> brickObjectPosValue = ValueNotifier<List<BrickObjectPos>>([]);
+
+  // for point already done
+  ValueNotifier<List<BrickObjectPosDone>> donePointsValue = ValueNotifier<List<BrickObjectPosDone>>([]);
+
+  // declare all parameter
+  ValueNotifier<int> animationPosTickValue = ValueNotifier<int>(0);
 
   @override
   void initState() {
@@ -154,21 +167,106 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
 
     // calculate size box base size box Tetris
     calculateSizeBox();
+    // generate random in animation loop
+
     animationController = AnimationController(vsync: this, duration: Duration(microseconds: 1000));
     animation = Tween<double>(begin: 0, end: 1).animate(animationController)..addListener(animationLoop);
     animationController.forward();
   }
 
   void calculateSizeBox() {
-    sizeBox = Size();
+    // sizeBox to calculate overall size which need for our tetris take place
+    sizeBox = Size(
+      (widget.size.width ~/ widget.sizePerSquare!) * widget.sizePerSquare!,
+      (widget.size.height ~/ widget.sizePerSquare!) * widget.sizePerSquare!,
+    );
+
+    // calculate bases level in game
+    // this one calculate bottom level
+    levelBases = List.generate(sizeBox.width ~/ widget.sizePerSquare!, (index) {
+      return ((sizeBox.height ~/ widget.sizePerSquare!) - 1) * (sizeBox.width ~/ widget.sizePerSquare!) + index;
+    });
+
+    // calculate left base wall
+    levelBases.addAll(List.generate(sizeBox.height ~/ widget.sizePerSquare!, (index) {
+      return index * (sizeBox.width ~/ widget.sizePerSquare!);
+    }));
+
+    // calculate right base wall
+    levelBases.addAll(List.generate(sizeBox.height ~/ widget.sizePerSquare!, (index) {
+      return (index * (sizeBox.width ~/ widget.sizePerSquare!)) + (sizeBox.width ~/ widget.sizePerSquare! - 1);
+    }));
+  }
+
+  pauseGame() async {
+    animationController.stop();
+    await showDialog(
+        context: context,
+        builder: (context) => SimpleDialog(
+              children: [
+                Text("Pause Game"),
+                ElevatedButton(onPressed: () {
+                  Navigator.of(context).pop();
+                  animationController.forward();
+                }, child: Text("Pause")),
+              ],
+            ));
+  }
+
+  resetGame() async {
+    animationController.stop();
+    await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => SimpleDialog(
+              children: [
+                Text("Resume Game"),
+                ElevatedButton(onPressed: () {
+                  donePointsValue.value = [];
+                  donePointsValue.notifyListeners();
+
+                  brickObjectPosValue.value = [];
+                  brickObjectPosValue.notifyListeners();
+
+                  Navigator.of(context).pop();
+
+                  calculateSizeBox();
+                  randomBrick(start: true);
+                  animationController.reset();
+                  animationController.stop();
+                  animationController.forward();
+                }, child: Text("Start / Reset")),
+              ],
+            ));
   }
 
   void animationLoop() {
-    if (animation.isCompleted) {
-      print("nice run");
+    // check brick length more that 1 for ready curent & future brick
+    if (animation.isCompleted && brickObjectPosValue.value.length > 1) {
+      print("nice run hahhaa");
+
       animationController.reset();
       animationController.forward();
     }
+    // we use on rest btn
+    // randomBrick(start: true);
+  }
+
+  void randomBrick({start: false}) {
+    // start true means to generate 2 random brick, if false we just generate one on time
+    brickObjectPosValue.value.add(getNewBrickPos());
+    widget.setNextBrick!.call(brickObjectPosValue.value);
+    brickObjectPosValue.notifyListeners();
+  }
+
+  BrickObjectPos getNewBrickPos() {
+    return BrickObjectPos(
+        size: Size.square(widget.sizePerSquare!),
+        sizeLayout: sizeBox,
+        color: Colors.primaries[Random().nextInt(Colors.primaries.length)].shade800,
+        rotation: Random().nextInt(4),
+        offset: Offset(widget.sizePerSquare! * 4, -widget.sizePerSquare! * 3),
+        shapeEnum: BrickShapeEnum.values[Random().nextInt(BrickShapeEnum.values.length)]);
   }
 
   @override
