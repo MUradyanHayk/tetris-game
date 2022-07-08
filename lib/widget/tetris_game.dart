@@ -4,7 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 // https://www.youtube.com/watch?v=DhyOyqz7saM&list=PLdtFzIhH38aKQfgjcui_WSdsksoVzHoc1
-// hasel em 40:00
+// hasel em 47:00
 class TetrisGame extends StatefulWidget {
   const TetrisGame({Key? key}) : super(key: key);
 
@@ -28,6 +28,7 @@ class _TetrisGameState extends State<TetrisGame> {
     const double sizePerSquare = 40;
     return Scaffold(
       body: Container(
+        alignment: Alignment.center,
         color: Colors.blue,
         child: SafeArea(
           child: Center(child: LayoutBuilder(builder: (context, constraints) {
@@ -74,6 +75,7 @@ class _TetrisGameState extends State<TetrisGame> {
                         ),
                       ),
                       Container(
+                        alignment: Alignment.center,
                         width: constraints.biggest.width / 2,
                         color: Colors.yellow,
                         child: Column(
@@ -106,6 +108,7 @@ class _TetrisGameState extends State<TetrisGame> {
                 ),
                 Expanded(
                     child: Container(
+                  alignment: Alignment.center,
                   width: double.maxFinite,
                   color: Colors.green,
                   child: LayoutBuilder(builder: (context, constraints) {
@@ -249,6 +252,11 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
     if (animation.isCompleted && brickObjectPosValue.value.length > 1) {
       print("nice run hahhaa");
 
+      // get current move
+      BrickObjectPos currentObj = brickObjectPosValue.value[brickObjectPosValue.value.length - 2];
+
+      // calculate offset target on animate
+
       animationController.reset();
       animationController.forward();
     }
@@ -259,6 +267,9 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
   void randomBrick({start: false}) {
     // start true means to generate 2 random brick, if false we just generate one on time
     brickObjectPosValue.value.add(getNewBrickPos());
+    if (start) {
+      brickObjectPosValue.value.add(getNewBrickPos());
+    }
     widget.setNextBrick!.call(brickObjectPosValue.value);
     brickObjectPosValue.notifyListeners();
   }
@@ -280,9 +291,15 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
 
     // let show our generate bricks
     return Container(
+      width: sizeBox.width,
+      height: sizeBox.height,
       alignment: Alignment.center,
       color: Colors.brown,
       child: Container(
+        color: Colors.white,
+        width: sizeBox.width,
+        height: sizeBox.height,
+        alignment: Alignment.center,
         child: ValueListenableBuilder(
           valueListenable: donePointsValue,
           builder: (context, List<BrickObjectPosDone> donePoints, child) {
@@ -297,12 +314,40 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
                           left: index % (sizeBox.width / widget.sizePerSquare!) * widget.sizePerSquare!,
                           top: index ~/ (sizeBox.width / widget.sizePerSquare!) * widget.sizePerSquare!,
                           child: Container(
-                            decoration: BoxDecoration(color: Colors.red, border: Border.all(width: 1)),
+                            decoration: BoxDecoration(
+                              // let make wall defined by our lists before
+                              color: checkIndexHitBase(index) ? Colors.black87 : Colors.transparent,
+                              border: Border.all(width: 1),
+                            ),
                             width: widget.sizePerSquare!,
                             height: widget.sizePerSquare!,
                           ),
                         );
-                      }),
+                      }).toList(),
+                      // lets show bricks
+                      // move our brick for demo
+                      if (brickObjectPoses.length > 1)
+                        ...brickObjectPoses
+                            .where((element) => !element.isDone)
+                            .toList()
+                            .asMap()
+                            .entries
+                            .map(
+                              (e) => Positioned(
+                                left: e.value.offset.dx,
+                                top: e.value.offset.dy,
+                                child: BrickShape(
+                                  BrickShapeStatic.getListBrickOnEnum(
+                                    e.value.shapeEnum,
+                                    direction: e.value.rotation,
+                                  ),
+                                  sizePerSquare: widget.sizePerSquare!,
+                                  points: e.value.pointArray,
+                                  color: e.value.color,
+                                ),
+                              ),
+                            )
+                            .toList(),
                     ],
                   );
                 });
@@ -310,6 +355,10 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
         ),
       ),
     );
+  }
+
+  checkIndexHitBase(int index) {
+    return levelBases.indexWhere((element) => element == index) != -1;
   }
 
   @override
