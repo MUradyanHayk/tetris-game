@@ -4,7 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 // https://www.youtube.com/watch?v=DhyOyqz7saM&list=PLdtFzIhH38aKQfgjcui_WSdsksoVzHoc1
-// hasel em 47:00
+// hasel em 1:00:00
 class TetrisGame extends StatefulWidget {
   const TetrisGame({Key? key}) : super(key: key);
 
@@ -25,7 +25,7 @@ class _TetrisGameState extends State<TetrisGame> {
 
   @override
   Widget build(BuildContext context) {
-    const double sizePerSquare = 40;
+    const double sizePerSquare = 20;
     return Scaffold(
       body: Container(
         alignment: Alignment.center,
@@ -125,7 +125,31 @@ class _TetrisGameState extends State<TetrisGame> {
                       },
                     );
                   }),
-                ))
+                )),
+                Container(
+                  color: Colors.red,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () => keyGlobal.currentState!.transformBrick(move: Offset(-sizePerSquare, 0)),
+                        child: Text("Left"),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => keyGlobal.currentState!.transformBrick(move: Offset(sizePerSquare, 0)),
+                        child: Text("Right"),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => keyGlobal.currentState!.transformBrick(move: Offset(0, sizePerSquare)),
+                        child: Text("Bottom"),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => keyGlobal.currentState!.transformBrick(rotate: true),
+                        child: Text("Rotate"),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             );
           })),
@@ -138,7 +162,7 @@ class _TetrisGameState extends State<TetrisGame> {
 class TetrisWidget extends StatefulWidget {
   Function(List<BrickObjectPos> brickObjectPos)? setNextBrick;
   final Size size;
-  double? sizePerSquare = 40;
+  double? sizePerSquare = 20;
 
   TetrisWidget(this.size, {Key? key, this.setNextBrick, this.sizePerSquare}) : super(key: key);
 
@@ -247,7 +271,7 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
             ));
   }
 
-  void animationLoop() {
+  void animationLoop() async {
     // check brick length more that 1 for ready curent & future brick
     if (animation.isCompleted && brickObjectPosValue.value.length > 1) {
       print("nice run hahhaa");
@@ -256,12 +280,73 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
       BrickObjectPos currentObj = brickObjectPosValue.value[brickObjectPosValue.value.length - 2];
 
       // calculate offset target on animate
+      Offset target = currentObj.offset.translate(0, widget.sizePerSquare!);
+
+      // check target move exceed wall or base,, if exceed then do nothing.. make done
+
+      if (checkTargetMove(target, currentObj)) {
+        currentObj.offset = target;
+        currentObj.calculateHit();
+        brickObjectPosValue.notifyListeners();
+      } else {
+        // currentObj.isDone = true;
+        // add to done for current object hit
+        currentObj.pointArray.where((element) => element != -99999).toList().forEach((element) {
+          donePointsValue.value.add(BrickObjectPosDone(element, color: currentObj.color));
+        });
+
+        donePointsValue.notifyListeners();
+
+        // remove second last array
+        // show on our layput 1st
+        brickObjectPosValue.value.removeAt(brickObjectPosValue.value.length - 2);
+
+        // check complete line
+
+        await checkCompleteLine();
+
+        // check game over
+        bool status = await checkGameOver();
+
+        if (!status) {
+          // generate new brick
+          // yeayyy ops.. we proceed with movement 1st..make button
+          randomBrick();
+        } else {
+          print("Game Over");
+        }
+      }
 
       animationController.reset();
       animationController.forward();
     }
     // we use on rest btn
     // randomBrick(start: true);
+  }
+
+  Future<bool> checkGameOver() async {
+    return donePointsValue.value.where((element) => element.index < 0 && element.index != -99999).length > 0;
+  }
+
+  checkCompleteLine() async {
+    // later we put full code
+  }
+
+  bool checkTargetMove(Offset targetPos, BrickObjectPos object) {
+    List<int> pointsPredict = object.calculateHit(predict: targetPos);
+
+    List<int> hitsIndex = [];
+
+    // add all wall for hits index
+    hitsIndex.addAll(levelBases);
+
+    // add all point done for hits index
+    hitsIndex.addAll(donePointsValue.value.map((e) => e.index));
+
+    // get number hit on points hit
+    int numberHitBase = pointsPredict.map((e) => hitsIndex.indexWhere((element) => element == e) > -1).where((element) => element).length;
+
+    return numberHitBase == 0;
   }
 
   void randomBrick({start: false}) {
@@ -348,6 +433,16 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
                               ),
                             )
                             .toList(),
+                      if (donePoints.length > 0)
+                        ...donePoints.map(
+                          (e) => Positioned(
+                            left: e.index % (sizeBox.width / widget.sizePerSquare!) * widget.sizePerSquare!,
+                            top: (e.index ~/ (sizeBox.width / widget.sizePerSquare!) * widget.sizePerSquare!).toDouble(),
+                            child: boxBrick(e.color!, text: e.index),
+                            width: widget.sizePerSquare!,
+                            height: widget.sizePerSquare!,
+                          ),
+                        )
                     ],
                   );
                 });
@@ -367,6 +462,27 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
     animation.removeListener(animationLoop);
     animationController.dispose();
     super.dispose();
+  }
+
+  transformBrick({Offset? move, bool? rotate}) {
+    if (move != null || rotate != null) {
+      if (move != null) {
+        // get current move
+        BrickObjectPos currentObj = brickObjectPosValue.value[brickObjectPosValue.value.length - 2];
+
+        // calculate offset target on animate
+        Offset target = currentObj.offset.translate(move.dx, move.dy);
+
+        // check target move exceed wall or base,, if exceed then do nothing.. make done
+
+        if (checkTargetMove(target, currentObj)) {
+          currentObj.offset = target;
+          currentObj.calculateHit();
+          brickObjectPosValue.notifyListeners();
+        }
+        // checkTargetMove(targetPos, object)
+      }
+    }
   }
 }
 
@@ -607,7 +723,7 @@ class BrickObjectPos {
         value = -99999;
       } else {
         double left = offsetTemp.dx / size!.width + entry.key % sqrt(length);
-        double top = offsetTemp.dy / size!.height + entry.key % sqrt(length);
+        double top = offsetTemp.dy / size!.height + entry.key ~/ sqrt(length);
         int index = left.toInt() + top * sizeLayout!.width ~/ size!.width;
         value = index.toInt();
       }
