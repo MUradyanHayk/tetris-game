@@ -4,7 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 // https://www.youtube.com/watch?v=DhyOyqz7saM&list=PLdtFzIhH38aKQfgjcui_WSdsksoVzHoc1
-// hasel em 1:00:00
+// hasel em 1:06:30
 class TetrisGame extends StatefulWidget {
   const TetrisGame({Key? key}) : super(key: key);
 
@@ -272,7 +272,7 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
   }
 
   void animationLoop() async {
-    // check brick length more that 1 for ready curent & future brick
+    // check brick length more that 1 for ready current & future brick
     if (animation.isCompleted && brickObjectPosValue.value.length > 1) {
       print("nice run hahhaa");
 
@@ -466,22 +466,35 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
 
   transformBrick({Offset? move, bool? rotate}) {
     if (move != null || rotate != null) {
+      // get current move
+      BrickObjectPos currentObj = brickObjectPosValue.value[brickObjectPosValue.value.length - 2];
+
+      // calculate offset target on animate
+      late Offset target;
       if (move != null) {
-        // get current move
-        BrickObjectPos currentObj = brickObjectPosValue.value[brickObjectPosValue.value.length - 2];
-
-        // calculate offset target on animate
-        Offset target = currentObj.offset.translate(move.dx, move.dy);
-
-        // check target move exceed wall or base,, if exceed then do nothing.. make done
+        target = currentObj.offset.translate(move.dx, move.dy);
 
         if (checkTargetMove(target, currentObj)) {
           currentObj.offset = target;
           currentObj.calculateHit();
           brickObjectPosValue.notifyListeners();
         }
-        // checkTargetMove(targetPos, object)
+
+      } else {
+          // currentObj.calculateRotation(1);
+        // BrickObjectPos temCurrent = BrickObjectPos.clone(currentObj);
+        currentObj.calculateRotation(1);
+        if (checkTargetMove(currentObj.offset, currentObj)) {
+          currentObj.calculateHit();
+          brickObjectPosValue.notifyListeners();
+        }else {
+          currentObj.calculateRotation(-1);
+        }
       }
+
+      // check target move exceed wall or base,, if exceed then do nothing.. make done
+
+
     }
   }
 }
@@ -640,17 +653,17 @@ class BrickShapeStatic {
         [1, 1],
       ];
     } else if (shapeEnum == BrickShapeEnum.LShape) {
-      shapeList = rotateLShape[direction];
+      shapeList = rotateLShape[direction % 4];
     } else if (shapeEnum == BrickShapeEnum.RLShape) {
-      shapeList = rotateRLShape[direction];
+      shapeList = rotateRLShape[direction % 4];
     } else if (shapeEnum == BrickShapeEnum.ZigZag) {
-      shapeList = rotateZigZag[direction];
+      shapeList = rotateZigZag[direction % 4];
     } else if (shapeEnum == BrickShapeEnum.RZigZag) {
-      shapeList = rotateRZigZag[direction];
+      shapeList = rotateRZigZag[direction % 4];
     } else if (shapeEnum == BrickShapeEnum.TShape) {
-      shapeList = rotateTShape[direction];
+      shapeList = rotateTShape[direction % 4];
     } else if (shapeEnum == BrickShapeEnum.Line) {
-      shapeList = rotateLine[direction];
+      shapeList = rotateLine[direction % 4];
     } else {
       shapeList = [];
     }
@@ -683,6 +696,18 @@ class BrickObjectPos {
   Size? size;
   Color color;
   List<int> pointArray = [];
+
+  static clone(BrickObjectPos object) {
+    return BrickObjectPos(
+      offset: object.offset,
+      shapeEnum: object.shapeEnum,
+      rotation: object.rotation,
+      isDone: object.isDone,
+      sizeLayout: object.sizeLayout,
+      size: object.size,
+      color: object.color,
+    );
+  }
 
   BrickObjectPos({
     this.size,
