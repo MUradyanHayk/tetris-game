@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
@@ -330,6 +331,54 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
 
   checkCompleteLine() async {
     // later we put full code
+    // let finish
+    List<int> leftIndex = List.generate(sizeBox.height ~/ widget.sizePerSquare!, (index) {
+      return index * ((sizeBox.width ~/ widget.sizePerSquare!));
+    });
+
+    int totalCol = (sizeBox.width ~/ widget.sizePerSquare!) - 2;
+    List<int> lineToDestroys = leftIndex
+        .where((element) {
+          return donePointsValue.value.where((point) => point.index == element + 1).length > 0;
+        })
+        .where((donePoint) {
+          List<int> rows = List.generate(totalCol, (index) => donePoint + 1 + index).toList();
+          return rows.where((row) {
+                return donePointsValue.value.where((element) => element.index == row).length > 0;
+              }).length ==
+              rows.length;
+        })
+        .map((e) {
+          return List.generate(totalCol, (index) => e + 1 + index).toList();
+        })
+        .expand((element) => element)
+        .toList();
+
+    List<BrickObjectPosDone> tempDonnePoints = donePointsValue.value;
+
+    if (lineToDestroys.length > 0) {
+      lineToDestroys.sort((a, b) => a.compareTo(b));
+      tempDonnePoints.sort((a, b) => a.index.compareTo(b.index));
+
+      int firstIndex = tempDonnePoints.indexWhere((element) => element.index == lineToDestroys.first);
+
+      if (firstIndex >= 0) {
+              tempDonnePoints.removeWhere((element) {
+               return lineToDestroys.where((line) => line == element.index).length > 0;
+              });
+
+              donePointsValue.value = tempDonnePoints.map((element) {
+                if (element.index < lineToDestroys.first) {
+                  int totalRowDelete = lineToDestroys.length ~/ totalCol;
+                  element.index = element.index + ((totalCol+2)* totalRowDelete);
+                }
+                return element;
+              }).toList();
+
+              donePointsValue.notifyListeners();
+
+      }
+    }
   }
 
   bool checkTargetMove(Offset targetPos, BrickObjectPos object) {
@@ -394,6 +443,7 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
                   return Stack(
                     children: [
                       // 1st generate box show our grid
+                      // last.. we clear line full
                       ...List.generate(sizeBox.width ~/ widget.sizePerSquare! * sizeBox.height ~/ widget.sizePerSquare!, (index) {
                         return Positioned(
                           left: index % (sizeBox.width / widget.sizePerSquare!) * widget.sizePerSquare!,
@@ -406,6 +456,10 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
                             ),
                             width: widget.sizePerSquare!,
                             height: widget.sizePerSquare!,
+                            child: Text(
+                              "${checkIndexHitBase(index) ? index : ""}",
+                              style: TextStyle(color: Colors.white),
+                            ),
                           ),
                         );
                       }).toList(),
@@ -479,21 +533,19 @@ class _TetrisWidgetState extends State<TetrisWidget> with SingleTickerProviderSt
           currentObj.calculateHit();
           brickObjectPosValue.notifyListeners();
         }
-
       } else {
-          // currentObj.calculateRotation(1);
+        // currentObj.calculateRotation(1);
         // BrickObjectPos temCurrent = BrickObjectPos.clone(currentObj);
         currentObj.calculateRotation(1);
         if (checkTargetMove(currentObj.offset, currentObj)) {
           currentObj.calculateHit();
           brickObjectPosValue.notifyListeners();
-        }else {
+        } else {
           currentObj.calculateRotation(-1);
         }
       }
 
       // check target move exceed wall or base,, if exceed then do nothing.. make done
-
 
     }
   }
